@@ -23,7 +23,7 @@ import mock
 from mbed_flasher.main import FlasherCLI
 from StringIO import StringIO
 
-flasher_version = '0.4.2'
+flasher_version = '0.4.3'
 
 
 class MainTestCase(unittest.TestCase):
