@@ -185,7 +185,7 @@ class Flash(object):
 
         return retcodes
 
-    def flash(self, build, target_id=None, platform_name=None, device_mapping_table=None, method='simple', no_reset=None):
+    def flash(self, build, target_id=None, platform_name=None, device_mapping_table=None, method='simple', no_reset=None, retry=3):
         """Flash (mbed) device
         :param build:  Build -object or string (file-path)
         :param target_id: target_id
@@ -235,10 +235,13 @@ class Flash(object):
             raise NotImplementedError("Platform '%s' is not supported by mbed-flasher" % platform_name)
 
         self.logger.debug("Flashing: %s", target_mbed["target_id"])
-
         flasher = self.__get_flasher(platform_name)
         try:
-            retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=no_reset)
+            for i in range(1,retry):
+                retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=no_reset)
+                if retcode == 0 :
+                    break
+                self.logger.error("retrying to flash the device %d/%d"%(i,retry))
         except KeyboardInterrupt:
             self.logger.error("Aborted by user")
             return EXIT_CODE_KEYBOARD_INTERRUPT

@@ -46,7 +46,7 @@ class FlasherMbed(object):
     def get_available_devices():
         mbeds = mbed_lstools.create()
         return mbeds.list_mbeds()
-        
+
     def reset_board(self, serial_port):
         try:
             port = EnhancedSerial(serial_port)
@@ -71,7 +71,7 @@ class FlasherMbed(object):
             else:
                 self.logger.info("reset failed")
         port.close()
-    
+
     def auxiliary_drive_check(self, drive):
         out = os.listdir(drive[0])
         for item in out:
@@ -81,7 +81,7 @@ class FlasherMbed(object):
             return False
         if drive[1] not in out:
             return True
-       
+
     def runner(self, drive):
         start_time = time()
         while True:
@@ -102,7 +102,7 @@ class FlasherMbed(object):
             if time() - start_time > self.FLASHING_VERIFICATION_TIMEOUT:
                 self.logger.debug("re-mount check timed out for %s" % drive[0])
                 break
-                
+
     def check_points_unchanged(self, target):
         new_target = {}
         if platform.system() == 'Windows':
@@ -147,10 +147,10 @@ class FlasherMbed(object):
                     if for_break:
                         break
                 else:
-                    self.logger.error("vfat mount point for %s did not re-appear in the system in 10 seconds" % 
+                    self.logger.error("vfat mount point for %s did not re-appear in the system in 10 seconds" %
                                       target['target_id'])
                     return -12
-        
+
         if new_target:
             if 'serial_port' in new_target:
                 self.logger.debug("serial port %s has changed to %s" %
@@ -166,7 +166,7 @@ class FlasherMbed(object):
             return new_target
         else:
             return target
-            
+
     def flash(self, source, target, method, no_reset):
         """copy file to the destination
         :param source: binary to be flashed
@@ -184,11 +184,11 @@ class FlasherMbed(object):
         if method == 'edbg':
             self.logger.debug("edbg is not supported for Mbed devices")
             return -13
-        
+
         mount_point = os.path.abspath(target['mount_point'])
         (head, tail) = os.path.split(os.path.abspath(source))
         destination = abspath(join(mount_point, tail))
-        
+
         if isinstance(source, six.string_types):
             if method == 'pyocd':
                 try:
@@ -238,9 +238,9 @@ class FlasherMbed(object):
                         os.close(new_file)
                     self.logger.debug("copy finished")
                     sleep(4)
-                    
+
                     new_target = self.check_points_unchanged(target)
-                    
+
                     if isinstance(new_target, int):
                         return new_target
                     else:
@@ -254,7 +254,7 @@ class FlasherMbed(object):
                             else:
                                 self.reset_board(target['serial_port'])
                             sleep(0.4)
-                            
+
                         # verify flashing went as planned
                         self.logger.debug("verifying flash")
                         if 'mount_point' in new_target:
@@ -267,9 +267,12 @@ class FlasherMbed(object):
                             self.logger.error("Flashing failed: %s. tid=%s" % (fault, target["target_id"]))
                             return -4
                         if isfile(join(mount, 'ASSERT.TXT')):
-                            with open(join(mount, 'ASSERT.TXT'), 'r') as fault:
+                            assert_file = join(mount, 'ASSERT.TXT')
+                            with open(assert_file, 'r') as fault:
                                 fault = fault.read().strip()
                             self.logger.error("Flashing failed: %s. tid=%s" % (fault, target))
+                            self.logger.error("Deleting %s " % (assert_file))
+                            os.remove(assert_file)
                             return -4
                         if isfile(join(mount, tail)):
                             self.logger.error("Flashing failed: File still present in mount point. tid info: %s" %
