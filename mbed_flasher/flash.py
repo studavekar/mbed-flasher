@@ -237,7 +237,7 @@ class Flash(object):
         self.logger.debug("Flashing: %s", target_mbed["target_id"])
         flasher = self.__get_flasher(platform_name)
         try:
-            for i in range(1,retry):
+            for i in range(1,retry+1):
                 retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=no_reset)
                 if retcode == 0 :
                     break

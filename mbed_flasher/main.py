@@ -72,7 +72,7 @@ def get_resource_subparser(subparsers, name, func, **kwargs):
     """
     tmp_parser = get_subparser(subparsers, name, func=func, **kwargs)
     return tmp_parser
-            
+
 class FlasherCLI:
     def __init__(self, args=None):
         self.logger = logging.getLogger('mbed-flasher')
@@ -136,10 +136,10 @@ class FlasherCLI:
         @return Returns ArgumentParser's tuple of (options, arguments)
         @details Add new command line options
         """
-        
+
         parser = argparse.ArgumentParser('mbedflash', description="For specific command help, run: mbedflash <command> --help")
-        
-                    
+
+
         parser.add_argument('-v', '--verbose',
                             dest="verbose",
                             action="count",
@@ -151,12 +151,18 @@ class FlasherCLI:
                             action="store_true",
                             help="Silent - only errors will be printed.")
 
+        parser.add_argument('-r', '--retry',
+                            dest="retry",
+                            type=int,
+                            default=3,
+                            help="retry if flash fails.")
+
         subparsers = parser.add_subparsers(title='command', dest='command', help='command help', metavar='<command>')
         subparsers.required = True
         get_subparser(subparsers, 'list', func=self.subcmd_list_platforms, help='Prints a list of supported platforms.')
         get_subparser(subparsers, 'flashers', func=self.subcmd_list_flashers, help='Prints a list of supported flashers.')
         get_subparser(subparsers, 'version', func=self.subcmd_version_handler, help='Display version information')
-        
+
         # Initialize flash command
         parser_flash = get_resource_subparser(subparsers, 'flash', func=self.subcmd_flash_handler, help='Flash given resource')
         parser_flash.add_argument('-i','--input', help='Binary input to be flashed.', default=None, metavar='INPUT')
@@ -183,7 +189,7 @@ class FlasherCLI:
                 args.method = 'simple'
         self.parser = parser
         return args
-        
+
     def set_log_level_from_verbose(self):
         """ set logging level, silent, or some of verbose level
         :param args: command line arguments
@@ -200,7 +206,7 @@ class FlasherCLI:
             self.console_handler.setLevel('DEBUG')
         else:
             self.logger.critical("UNEXPLAINED NEGATIVE COUNT!")
-            
+
     def cli_decorator(operation):
         def operation_wrapper(self, args, **kwargs):
             retcode = operation(self, args, self.logger)
@@ -264,18 +270,18 @@ class FlasherCLI:
                                 return EXIT_CODE_PLATFORM_REQUIRED
                         else:
                             #print(target_ids_to_flash)
-                            retcode = flasher.flash(build=args.input, target_id=target_ids_to_flash, platform_name=available_platforms[0], method=args.method, no_reset=args.no_reset)
+                            retcode = flasher.flash(build=args.input, target_id=target_ids_to_flash, platform_name=available_platforms[0], method=args.method, no_reset=args.no_reset, retry=args.retry)
                 else:
                     print("Could not find any connected device")
                     return EXIT_CODE_DEVICES_MISSING
             else:
-                retcode = flasher.flash(build=args.input, target_id='all', platform_name=args.platform_name, method=args.method, no_reset=args.no_reset)
+                retcode = flasher.flash(build=args.input, target_id='all', platform_name=args.platform_name, method=args.method, no_reset=args.no_reset, retry=args.retry)
         else:
             print("Target_id is missing")
             return EXIT_CODE_NO_TARGET_ID
-        
+
         return retcode
-        
+
     def subcmd_reset_handler(self, args):
         resetter = Reset()
         if args.tid:
@@ -287,9 +293,9 @@ class FlasherCLI:
         else:
             print("Target_id is missing")
             return EXIT_CODE_NO_TARGET_ID
-            
+
         return retcode
-        
+
     def subcmd_erase_handler(self, args):
         eraser = Erase()
         if args.tid:
@@ -301,9 +307,9 @@ class FlasherCLI:
         else:
             print("Target_id is missing")
             return EXIT_CODE_NO_TARGET_ID
-            
+
         return retcode
-        
+
     def subcmd_version_handler(self, args):
         import pkg_resources  # part of setuptools
         versions = pkg_resources.require("mbed-flasher")
@@ -314,17 +320,17 @@ class FlasherCLI:
             print(versions[0].version)
 
         return EXIT_CODE_SUCCESS
-        
+
     def subcmd_list_platforms(self, args):
         flasher = Flash()
         print(json.dumps(flasher.get_supported_targets()))
         return EXIT_CODE_SUCCESS
-        
+
     def subcmd_list_flashers(self, args):
         flasher = Flash()
         print(json.dumps(flasher.get_supported_flashers()))
         return EXIT_CODE_SUCCESS
-        
+
     def parse_id_to_devices(self, tid):
         flasher = Flash()
         available = flasher.get_available_device_mapping()
@@ -364,6 +370,6 @@ def mbedflash_main():
 
     cli = FlasherCLI()
     exit(cli.execute())
-    
+
 if __name__ == '__main__':
     mbedflash_main()
