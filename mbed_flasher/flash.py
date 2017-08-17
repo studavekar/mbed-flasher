@@ -16,6 +16,9 @@ limitations under the License.
 
 from os.path import isfile
 import platform
+import os
+import subprocess
+from datetime import datetime
 from mbed_flasher.common import Logger
 
 EXIT_CODE_NO_PLATFORM_GIVEN = 35
@@ -25,6 +28,7 @@ EXIT_CODE_KEYBOARD_INTERRUPT = 50
 EXIT_CODE_TARGET_ID_COULD_NOT_BE_MAPPED_TO_DEVICE = 55
 EXIT_CODE_SYSTEM_INTERRUPT = 60
 EXIT_CODE_REQUESTED_FLASHER_DOES_NOT_EXIST = 65
+ENABLE_USBMON = 1
 
 class Flash(object):
     """ Flash object, which manage flashing single device
@@ -185,6 +189,27 @@ class Flash(object):
 
         return retcodes
 
+    def start_usbmon_capture(self, platform_name,target_id,build):
+        if ENABLE_USBMON != 1: return
+        self.usbmon_log = "{}_{}_{}_{}.pcap".format(platform_name,target_id,os.path.basename(build),datetime.utcnow().strftime('%Y-%m-%d_%H_%M_%S.%f'))
+        self.binary = "{}_{}_{}_{}.bin".format(platform_name,target_id,os.path.basename(build),datetime.utcnow().strftime('%Y-%m-%d_%H_%M_%S.%f'))
+        usbmon_cmd = "sudo  tcpdump -i usbmon1 -w %s -G 120  -W 1" % (self.usbmon_log)
+        self.logger.info("running %s" % (usbmon_cmd))
+        self.usbmon_proc = subprocess.Popen(usbmon_cmd.split())
+
+    def stop_usbmon_capture(self,binary,del_logfile=0):
+        if ENABLE_USBMON != 1: return
+        self.logger.info("Stop usb logging...")
+        kill_cmd = "sudo pkill -f %s" % (self.usbmon_log)
+        self.proc = subprocess.Popen(kill_cmd.split())
+        self.proc.wait()
+        self.usbmon_proc.wait()
+        if del_logfile == 0 :
+            os.system('rm -f %s'%self.usbmon_log)
+        else :
+            os.system('cp %s %s'%(binary,self.binary))
+            self.logger.info("Log file preset at %s"%(os.path.join(os.getcwd(),self.usbmon_log)))
+
     def flash(self, build, target_id=None, platform_name=None, device_mapping_table=None, method='simple', no_reset=None):
         """Flash (mbed) device
         :param build:  Build -object or string (file-path)
@@ -195,7 +220,7 @@ class Flash(object):
         """
 
         K64F_TARGET_ID_LENGTH = 48
-
+        retcode = 1
         if target_id is None and platform_name is None:
             raise SyntaxError("target_id or target_name is required")
 
@@ -238,6 +263,7 @@ class Flash(object):
 
         flasher = self.__get_flasher(platform_name)
         try:
+            self.start_usbmon_capture(platform_name,target_id,build)
             retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=no_reset)
         except KeyboardInterrupt:
             self.logger.error("Aborted by user")
@@ -245,6 +271,8 @@ class Flash(object):
         except SystemExit:
             self.logger.error("Aborted by SystemExit event")
             return EXIT_CODE_SYSTEM_INTERRUPT
+        finally:
+            self.stop_usbmon_capture(build,retcode)
 
         if retcode == 0:
             self.logger.info("flash ready")
