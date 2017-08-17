@@ -18,6 +18,7 @@ from os.path import isfile
 import platform
 import os
 import subprocess
+import time
 from datetime import datetime
 from mbed_flasher.common import Logger
 
@@ -264,10 +265,11 @@ class Flash(object):
         try:
             self.start_usbmon_capture(platform_name,target_id,build)
             for i in range(1,retry+1):
-                retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=no_reset)
+                retcode = flasher.flash(source=build, target=target_mbed, method=method, no_reset=False)
                 if retcode == 0 :
                     break
                 self.logger.error("retrying to flash the device %d/%d"%(i,retry))
+                time.sleep(10)
         except KeyboardInterrupt:
             self.logger.error("Aborted by user")
             return EXIT_CODE_KEYBOARD_INTERRUPT
